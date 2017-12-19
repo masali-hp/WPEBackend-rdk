@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2015, 2016 Igalia S.L.
  * Copyright (C) 2015, 2016 Metrological
+ * Copyright (C) 2017 HP Development Company, L.P.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -58,6 +59,10 @@
 #include "viv-imx6/interfaces.h"
 #endif
 
+#ifdef BACKEND_WINDOWS_EGL
+#include "windows-egl/interfaces.h"
+#endif
+
 #ifdef BACKEND_WPEFRAMEWORK
 #include "wpeframework/interfaces.h"
 #endif
@@ -81,7 +86,11 @@ struct wpe_renderer_host_interface noop_renderer_host_interface = {
     },
 };
 
+#ifdef _MSC_VER
+__declspec(dllexport)
+#else
 __attribute__((visibility("default")))
+#endif
 struct wpe_loader_interface _wpe_loader_interface = {
     [](const char* object_name) -> void* {
 
@@ -170,6 +179,18 @@ struct wpe_loader_interface _wpe_loader_interface = {
 
         if (!std::strcmp(object_name, "_wpe_view_backend_interface"))
             return &viv_imx6_view_backend_interface;
+#endif
+
+#ifdef BACKEND_WINDOWS_EGL
+        if (!std::strcmp(object_name, "_wpe_renderer_backend_egl_interface"))
+            return &windows_egl_renderer_backend_egl_interface;
+        if (!std::strcmp(object_name, "_wpe_renderer_backend_egl_target_interface"))
+            return &windows_egl_renderer_backend_egl_target_interface;
+        if (!std::strcmp(object_name, "_wpe_renderer_backend_egl_offscreen_target_interface"))
+            return &windows_egl_renderer_backend_egl_offscreen_target_interface;
+
+        if (!std::strcmp(object_name, "_wpe_view_backend_interface"))
+            return &windows_egl_view_backend_interface;
 #endif
 
 #ifdef BACKEND_WPEFRAMEWORK

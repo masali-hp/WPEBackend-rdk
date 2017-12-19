@@ -45,7 +45,7 @@ if (PC_EGL_FOUND)
         set(EGL_LIBRARIES ${EGL_LIBRARIES} ${EGL_LIBRARIES_${_library}})
     endforeach ()
 else ()
-    set(EGL_NAMES ${EGL_NAMES} egl EGL)
+    set(EGL_NAMES ${EGL_NAMES} egl EGL libEGL)
     find_library(EGL_LIBRARIES NAMES ${EGL_NAMES}
         HINTS ${PC_EGL_LIBDIR} ${PC_EGL_LIBRARY_DIRS}
     )

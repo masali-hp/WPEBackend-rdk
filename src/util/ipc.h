@@ -28,7 +28,11 @@
 #ifndef wpe_platform_ipc_h
 #define wpe_platform_ipc_h
 
+#if WIN32
+#include "pipe.h"
+#else
 #include <gio/gio.h>
+#endif
 #include <memory>
 #include <stdint.h>
 
@@ -64,13 +68,22 @@ public:
     void sendMessage(char*, size_t);
 
 private:
+#if WIN32
+    static void socketCallback(size_t size, char *, void *);
+#else
     static gboolean socketCallback(GSocket*, GIOCondition, gpointer);
+#endif
 
     Handler* m_handler;
 
+#if WIN32
+    Windows::Pipe* m_pipe;
+    HANDLE m_readThreadHandle;
+#else
     GSocket* m_socket;
     GSource* m_source;
     int m_clientFd { -1 };
+#endif
 };
 
 class Client {
@@ -91,12 +104,21 @@ public:
     void sendMessage(char*, size_t);
 
 private:
+#if WIN32
+    static void socketCallback(size_t size, char *, void *);
+#else
     static gboolean socketCallback(GSocket*, GIOCondition, gpointer);
+#endif
 
     Handler* m_handler;
 
+#if WIN32
+    Windows::Pipe* m_pipe;
+    HANDLE m_readThreadHandle;
+#else
     GSocket* m_socket;
     GSource* m_source;
+#endif
 };
 
 } // namespace IPC

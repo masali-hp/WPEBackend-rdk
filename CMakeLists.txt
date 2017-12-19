@@ -3,8 +3,13 @@ project(WPEBackend-rdk)
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -fno-exceptions -fno-strict-aliasing")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y -fno-exceptions -fno-strict-aliasing -fno-rtti")
+if (MSVC)
+    # Disable exceptions, run time type information
+    add_compile_options(/fp:except- /GR-)
+else ()
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -fno-exceptions -fno-strict-aliasing")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y -fno-exceptions -fno-strict-aliasing -fno-rtti")
+endif ()
 
 # Converted
 option(USE_BACKEND_BCM_NEXUS "Whether to enable support for the BCM_NEXUS WPE backend" OFF)
@@ -16,6 +21,7 @@ option(USE_BACKEND_WESTEROS "Whether to enable support for the Westeros WPE back
 option(USE_BACKEND_REALTEK "Whether to enable support for Realtek's Wayland EGL WPE backend" OFF)
 option(USE_BACKEND_VIV_IMX6_EGL "Whether to enable support for NXP's IMX6 EGL WPE backend" OFF)
 option(USE_BACKEND_WPEFRAMEWORK "WPEFramework abstraction layer is used as WPE backend" OFF)
+option(USE_BACKEND_WINDOWS_EGL "Whether to use Windows EGL WPE backend" OFF)
 
 option(USE_PLATFORM_BROADCOM "Whether the playback is based on Broadcom plugins" OFF)
 option(USE_BACKEND_WESTEROS_MESA "Whether to enable support for the gbm based offscreen target for westeros Mesa only" OFF)
@@ -34,6 +40,11 @@ if (USE_VIRTUAL_KEYBOARD)
     add_definitions(-DKEY_INPUT_HANDLING_VIRTUAL=1)
 endif()
 
+if (WIN32)
+    list(APPEND WPE_INCLUDE_DIRS
+        "${CMAKE_SOURCE_DIR}/src/windows"
+    )
+endif ()
 if (USE_BACKEND_WESTEROS_MESA)
     add_definitions(-DWPE_BACKEND_MESA=1)
 endif ()
@@ -64,11 +75,20 @@ endif ()
 
 set(WPE_PLATFORM_SOURCES
         src/loader-impl.cpp
+        )
+if (WIN32)
+    list(APPEND WPE_PLATFORM_SOURCES
+        src/util/ipc-win.cpp
+        src/windows/pipe.cpp
+    )
+else ()
+    list(APPEND WPE_PLATFORM_SOURCES
 
         src/util/ipc.cpp
-        )
+    )
+endif ()
 
-if (USE_INPUT_LIBINPUT)
+if (NOT WIN32 AND USE_INPUT_LIBINPUT)
     find_package(Libinput REQUIRED)
     list(APPEND WPE_PLATFORM_INCLUDE_DIRECTORIES
             ${LIBINPUT_INCLUDE_DIRS}
@@ -125,6 +145,10 @@ if (USE_BACKEND_WAYLAND_EGL)
     include(src/wayland-egl/CMakeLists.txt)
 endif ()
 
+if (USE_BACKEND_WINDOWS_EGL)
+    include(src/windows-egl/CMakeLists.txt)
+endif ()
+
 if (USE_BACKEND_WESTEROS)
     include(src/westeros/CMakeLists.txt)
 endif ()
@@ -137,11 +161,20 @@ add_library(WPEBackend-rdk SHARED ${WPE_PLATFORM_SOURCES})
 target_include_directories(WPEBackend-rdk PRIVATE ${WPE_PLATFORM_INCLUDE_DIRECTORIES})
 target_link_libraries(WPEBackend-rdk ${WPE_PLATFORM_LIBRARIES})
 target_compile_options(WPEBackend-rdk PRIVATE ${WPE_PLATFORM_EXTRA_CFLAGS})
-install(TARGETS WPEBackend-rdk DESTINATION "${CMAKE_INSTALL_PREFIX}/lib")
 
-# Create a libWPEBackend-default.so symlink to libWPEBackend-rdk.so and install it.
-add_custom_command(TARGET WPEBackend-rdk
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E create_symlink libWPEBackend-rdk.so ${CMAKE_BINARY_DIR}/libWPEBackend-default.so
-        )
-install(FILES ${CMAKE_BINARY_DIR}/libWPEBackend-default.so DESTINATION "${CMAKE_INSTALL_PREFIX}/lib")
+if (WIN32)
+    install(TARGETS WPEBackend-rdk RUNTIME DESTINATION bin)
+    add_custom_command(TARGET WPEBackend-rdk
+            POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy "$<CONFIG>/WPEBackend-rdk.dll" "$<CONFIG>/WPEBackend-default.dll"
+            )
+    install(FILES "${CMAKE_BINARY_DIR}/$<CONFIG>/WPEBackend-default.dll" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin")
+else ()
+    install(TARGETS WPEBackend-rdk DESTINATION "${CMAKE_INSTALL_PREFIX}/bin")
+    # Create a libWPEBackend-default.so symlink to libWPEBackend-rdk.so and install it.
+    add_custom_command(TARGET WPEBackend-rdk
+            POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E create_symlink libWPEBackend-rdk.so ${CMAKE_BINARY_DIR}/libWPEBackend-default.so
+            )
+    install(FILES ${CMAKE_BINARY_DIR}/libWPEBackend-default.so DESTINATION "${CMAKE_INSTALL_PREFIX}/lib")
+endif ()
