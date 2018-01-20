@@ -49,7 +49,7 @@ void Host::initialize(Handler& handler)
     srand(performanceCount.LowPart);
     while (!m_pipe) {
         int id = rand();
-        m_pipe = Windows::Pipe::CreateServer(id, socketCallback, this);
+        m_pipe = Windows::Pipe::CreateServer(id, "WPEBackend-recv-server", socketCallback, this);
     }
 }
 
@@ -93,7 +93,7 @@ void Client::initialize(Handler& handler, int id)
 {
     m_handler = &handler;
 
-    m_pipe = Windows::Pipe::ConnectClient(id, socketCallback, this);
+    m_pipe = Windows::Pipe::ConnectClient(id, "WPEBackend-recv-client", socketCallback, this);
 }
 
 void Client::deinitialize()

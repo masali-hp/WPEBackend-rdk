@@ -37,7 +37,37 @@ namespace Windows {
 #define USE_MESSAGE_MODE true
 #define USE_WAIT_NAMED_PIPE true
 
-    Pipe::Pipe(int pipeID, HANDLE pipe, bool server, ReadCallback cb, void * ctx)
+//https://docs.microsoft.com/en-us/visualstudio/debugger/how-to-set-a-thread-name-in-native-code
+//
+// Usage: SetThreadName ((DWORD)-1, "MainThread");
+//
+const DWORD MS_VC_EXCEPTION = 0x406D1388;
+#pragma pack(push,8)
+typedef struct tagTHREADNAME_INFO
+{
+    DWORD dwType; // Must be 0x1000.
+    LPCSTR szName; // Pointer to name (in user addr space).
+    DWORD dwThreadID; // Thread ID (-1=caller thread).
+    DWORD dwFlags; // Reserved for future use, must be zero.
+} THREADNAME_INFO;
+#pragma pack(pop)
+void SetThreadName(DWORD dwThreadID, const char* threadName) {
+    THREADNAME_INFO info;
+    info.dwType = 0x1000;
+    info.szName = threadName;
+    info.dwThreadID = dwThreadID;
+    info.dwFlags = 0;
+#pragma warning(push)
+#pragma warning(disable: 6320 6322)
+    __try {
+        RaiseException(MS_VC_EXCEPTION, 0, sizeof(info) / sizeof(ULONG_PTR), (ULONG_PTR*)&info);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
+    }
+#pragma warning(pop)
+}
+
+    Pipe::Pipe(int pipeID, HANDLE pipe, bool server, const char * threadName, ReadCallback cb, void * ctx)
         : m_server(server)
         , m_pipe_id(pipeID)
         , m_pipe(pipe)
@@ -55,10 +85,7 @@ namespace Windows {
             m_overlappedRead = INVALID_HANDLE_VALUE;
             m_overlappedWrite = INVALID_HANDLE_VALUE;
         }
-        if (!server) {
-            // a 'client' pipe should already be connected at this point.
-            CreateReadThread();
-        }
+        CreateReadThread(threadName);
     }
 
     Pipe::~Pipe(void)
@@ -95,13 +122,14 @@ namespace Windows {
         }
     }
 
-    void Pipe::CreateReadThread()
+    void Pipe::CreateReadThread(const char * threadName)
     {
         m_readThread = CreateThread(NULL, 0, ReceiveThreadStatic, this, 0, nullptr);
+        SetThreadName(GetThreadId(m_readThread), threadName);
     }
 
     /*static*/
-    Pipe* Pipe::CreateServer(int pipeID, ReadCallback callback, void * ctx)
+    Pipe* Pipe::CreateServer(int pipeID, const char * threadName, ReadCallback callback, void * ctx)
     {
         wchar_t pipeName[64];
         _snwprintf_s(pipeName, _countof(pipeName), _TRUNCATE, pipeNameFmt, pipeID);
@@ -142,7 +170,7 @@ namespace Windows {
         if (pipe == INVALID_HANDLE_VALUE)
             return nullptr;
 
-        return new Pipe(pipeID, pipe, true, callback, ctx);
+        return new Pipe(pipeID, pipe, true, threadName, callback, ctx);
     }
 
     bool Pipe::WaitForClient(int timeout)
@@ -179,7 +207,6 @@ namespace Windows {
             m_logOutput(msg, len, m_logOutputCtx);
         }
         if (error == ERROR_PIPE_CONNECTED) {
-            CreateReadThread();
             return true;
         }
         else if (error == ERROR_IO_PENDING || error == ERROR_SUCCESS) {
@@ -188,7 +215,6 @@ namespace Windows {
                 timeout,            // may be INFINITE
                 TRUE);              // alertable wait enabled
             if (dwWait == WAIT_OBJECT_0 || dwWait == WAIT_IO_COMPLETION) {
-                CreateReadThread();
                 return true;
             }
             if (m_logOutput) {
@@ -203,7 +229,7 @@ namespace Windows {
     }
 
     /* static */
-    Pipe* Pipe::ConnectClient(int pipeID, ReadCallback cb, void * ctx)
+    Pipe* Pipe::ConnectClient(int pipeID, const char * threadName, ReadCallback cb, void * ctx)
     {
         wchar_t pipeName[64];
         _snwprintf_s(pipeName, _countof(pipeName), _TRUNCATE, pipeNameFmt, pipeID);
@@ -243,7 +269,7 @@ namespace Windows {
             }
         }
 
-        return new Pipe(pipeID, hPipe, false, cb, ctx);
+        return new Pipe(pipeID, hPipe, false, threadName, cb, ctx);
     }
 
     void WINAPI CompletedRoutine(DWORD dwErr, DWORD cbBytes, LPOVERLAPPED lpOverLap)
@@ -357,13 +383,18 @@ namespace Windows {
     void Pipe::ReceiveThread()
     {
         while (IsValid()) {
-            char message[BUFSIZE];
-            size_t read = BUFSIZE;
-            DWORD error;
-            Receive(read, message, error);
-            if (error != ERROR_SUCCESS)
-                break;
-            m_readCallback(read, message, m_readContext);
+            if (m_server) {
+                WaitForClient(INFINITE);
+            }
+            while (IsValid()) {
+                char message[BUFSIZE];
+                size_t read = BUFSIZE;
+                DWORD error;
+                Receive(read, message, error);
+                if (error != ERROR_SUCCESS)
+                    break;
+                m_readCallback(read, message, m_readContext);
+            }
         }
     }
 

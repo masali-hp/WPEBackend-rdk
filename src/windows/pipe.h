@@ -49,8 +49,8 @@ namespace Windows {
         Pipe(Pipe &source) = delete;
         Pipe& Pipe::operator= (Pipe &cSource) = delete;
 
-        static Pipe* CreateServer(int pipeId, ReadCallback cb, void * ctx);
-        static Pipe* ConnectClient(int pipeId, ReadCallback cb, void * ctx);
+        static Pipe* CreateServer(int pipeId, const char * threadName, ReadCallback cb, void * ctx);
+        static Pipe* ConnectClient(int pipeId, const char * threadName, ReadCallback cb, void * ctx);
 
         int ID() { return m_pipe_id; }
         bool IsValid() { return m_pipe != INVALID_HANDLE_VALUE; }
@@ -62,8 +62,8 @@ namespace Windows {
         void SetDebugCallback(PipeMessageDebugCallback callback, void * ctx);
 
     private:
-        Pipe(int pipeId, HANDLE pipe, bool server, ReadCallback cb, void * ctx);
-        void CreateReadThread();
+        Pipe(int pipeId, HANDLE pipe, bool server, const char * threadName, ReadCallback cb, void * ctx);
+        void CreateReadThread(const char * threadName);
 
         static DWORD WINAPI ReceiveThreadStatic(void*);
         void ReceiveThread();
