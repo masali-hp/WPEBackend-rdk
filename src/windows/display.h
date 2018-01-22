@@ -65,6 +65,7 @@ class Display {
 public:
     static Display& singleton();
 
+    HWND nativeWindow() { return m_hwnd; }
     EGLDisplay eglDisplay() { return m_display; }
     EGLConfig eglConfig() { return m_config; }
     EGLNativeDisplayType eglNativeDisplay() { return m_hdc; }
@@ -76,7 +77,15 @@ private:
     void releaseResources();
     void printEGLConfigurations();
     void printEGLConfiguration(EGLConfig &);
+    LRESULT WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+    static LRESULT CALLBACK WndProcStatic(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
+    void MessageThread();
+    static DWORD WINAPI MessageThreadStatic(void *);
+
+    HANDLE m_windowInitializedEvent;
+    HANDLE h_messageLoopThread;
+    HWND m_hwnd;
     HDC m_hdc;
     EGLDisplay m_display;
     EGLConfig m_config;
