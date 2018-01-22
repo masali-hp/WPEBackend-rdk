@@ -15,5 +15,7 @@ list(APPEND WPE_PLATFORM_SOURCES
     src/windows-egl/renderer-backend.cpp
     src/windows-egl/view-backend.cpp
     src/windows/display.cpp
-    src/wayland/display.h
+    src/windows/display.h
+    src/windows/threadname.cpp
+    src/windows/threadname.h
 )

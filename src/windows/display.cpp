@@ -26,6 +26,7 @@
  */
 
 #include "display.h"
+#include "threadname.h"
 #include <windowsx.h>
 
 // https://www.khronos.org/registry/EGL/sdk/docs/man/html/eglGetError.xhtml
@@ -105,10 +106,15 @@ void Display::MessageThread()
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
+
+    printf("WPEBackend-rdk: display.cpp: message loop thread ended\n");
+    // Now what?  I don't believe WPEBackend provides a clean way to terminate the app...
+    // We need to send a message to the UI process and tell it to tear down.
 }
 
 DWORD WINAPI Display::MessageThreadStatic(void * ctx)
 {
+    SetThreadName(::GetCurrentThreadId(), "WPEBackend-UI");
     reinterpret_cast<Display*>(ctx)->MessageThread();
     return 0;
 }
@@ -430,6 +436,10 @@ LRESULT Display::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         bool pressed = true;
         struct wpe_input_keyboard_event event = { (uint32_t)GetMessageTime(), keyCode, unicode, pressed, getModifiers() };
         EventDispatcher::singleton().sendEvent(event);
+    } break;
+    case WM_CLOSE:
+    {
+        PostQuitMessage(0);
     } break;
     }
     return 0;
