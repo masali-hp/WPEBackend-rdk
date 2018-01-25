@@ -83,7 +83,14 @@ namespace WindowsEGL {
     void EGLTarget::initialize(Backend& backend, uint32_t width, uint32_t height)
     {
         m_backend = &backend;
-        SetWindowPos(hwnd(), NULL, 0, 0, width, height, 0);
+        RECT windowRect;
+        windowRect.left = 0;
+        windowRect.top = 0;
+        windowRect.right = width;
+        windowRect.bottom = height;
+        BOOL bMenu = FALSE;
+        AdjustWindowRect(&windowRect, m_backend->display.windowStyles(), bMenu);
+        SetWindowPos(hwnd(), NULL, 0, 0, windowRect.right - windowRect.left, windowRect.bottom - windowRect.top, 0);
         ShowWindow(hwnd(), SW_SHOW);
     }
 

@@ -70,6 +70,8 @@ public:
     EGLConfig eglConfig() { return m_config; }
     EGLNativeDisplayType eglNativeDisplay() { return m_hdc; }
 
+    DWORD windowStyles() { return m_windowStyles; }
+
 private:
     Display();
     ~Display();
@@ -89,6 +91,7 @@ private:
     HDC m_hdc;
     EGLDisplay m_display;
     EGLConfig m_config;
+    DWORD m_windowStyles;
 };
 
 } // namespace Wayland

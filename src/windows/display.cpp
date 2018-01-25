@@ -82,12 +82,12 @@ void Display::MessageThread()
     }
 
     const bool showWindowFrame = true;
-    DWORD styles = showWindowFrame ? WS_OVERLAPPEDWINDOW : WS_POPUP;
+    m_windowStyles = showWindowFrame ? WS_OVERLAPPEDWINDOW : WS_POPUP;
     int width = 0;
     int height = 0;
 
     m_hwnd = CreateWindow(szWindowClass, TEXT("WPE Display"),
-        styles,
+        m_windowStyles,
         CW_USEDEFAULT, 0,
         width, height,
         NULL, NULL, NULL, NULL);
