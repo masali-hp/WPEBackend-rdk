@@ -68,7 +68,7 @@ namespace Windows {
         static DWORD WINAPI ReceiveThreadStatic(void*);
         void ReceiveThread();
         void Receive(size_t &size, char *, DWORD& error);
-        bool WaitForIOCompletion(const char * method, const OVERLAPPED_OP & op, DWORD & error);
+        bool WaitForIOCompletion(const char * method, const OVERLAPPED_OP & op, DWORD & error, bool waitForAllData);
 
         bool m_server;
         int m_pipe_id;

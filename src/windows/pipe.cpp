@@ -249,9 +249,9 @@ namespace Windows {
         SetEvent(lpOverLap->hEvent);
     }
 
-    bool Pipe::WaitForIOCompletion(const char * method, const OVERLAPPED_OP & op, DWORD & error)
+    bool Pipe::WaitForIOCompletion(const char * method, const OVERLAPPED_OP & op, DWORD & error, bool waitForAllData)
     {
-        while (error == ERROR_SUCCESS && op.Transferred < op.Total) {
+        while (error == ERROR_SUCCESS) {
             DWORD dwWait = WaitForSingleObjectEx(
                 op.Overlap.hEvent,
                 INFINITE,
@@ -271,8 +271,11 @@ namespace Windows {
                 error = ERROR_INVALID_HANDLE;
                 return false;
             }
+
+            if (op.Transferred == op.Total || !waitForAllData)
+                break;
         }
-        return error == ERROR_SUCCESS && op.Transferred == op.Total;
+        return error == ERROR_SUCCESS;
     }
 
     void Pipe::Send(size_t size, char * buffer, DWORD& error)
@@ -304,7 +307,7 @@ namespace Windows {
         }
 
         if (bResult && error == ERROR_SUCCESS)
-            WaitForIOCompletion("WriteFileEx", op, error);
+            WaitForIOCompletion("WriteFileEx", op, error, true);
     }
 
     void Pipe::Receive(size_t& size, char * buffer, DWORD& error)
@@ -336,7 +339,9 @@ namespace Windows {
         }
 
         if (bResult && error == ERROR_SUCCESS)
-            WaitForIOCompletion("ReadFileEx", op, error);
+            WaitForIOCompletion("ReadFileEx", op, error, false);
+
+        size = op.Transferred;
     }
 
     void Pipe::SetDebugCallback(PipeMessageDebugCallback callback, void * ctx)
