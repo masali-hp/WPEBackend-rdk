@@ -72,7 +72,7 @@ void Display::MessageThread()
         wcex.style = CS_HREDRAW | CS_VREDRAW;
         wcex.lpfnWndProc = WndProcStatic;
         wcex.cbClsExtra = 0;
-        wcex.cbWndExtra = 4; // 4 bytes for the browser window pointer
+        wcex.cbWndExtra = sizeof(this); // browser window pointer
         wcex.hInstance = 0;
         wcex.hIcon = 0; // LoadIcon(hInstance, MAKEINTRESOURCE(IDI_WINLAUNCHER));
         wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
@@ -275,7 +275,6 @@ bool testMode = false;
 static POINT positionForEvent(HWND hWnd, LPARAM lParam)
 {
     POINT point = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
-    ScreenToClient(hWnd, &point);
     return point;
 }
 
@@ -310,17 +309,21 @@ LRESULT CALLBACK Display::WndProcStatic(HWND hWnd, UINT message, WPARAM wParam, 
 {
     LONG_PTR longPtr = GetWindowLongPtr(hWnd, 0);
     Display* display = reinterpret_cast<Display*>(longPtr);
+    LRESULT result = 0;
 
     if (display) {
-        return display->WndProc(hWnd, message, wParam, lParam);
+        result = display->WndProc(hWnd, message, wParam, lParam);
     }
-
-    return CallWindowProc(DefWindowProc, hWnd, message, wParam, lParam);
+    if (result == 0) {
+        result = CallWindowProc(DefWindowProc, hWnd, message, wParam, lParam);
+    }
+    return result;
 }
 
 LRESULT Display::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     bool emulateTouch = false;
+    bool handled = false;
 
     switch (message) {
         // POINTER
@@ -335,21 +338,16 @@ LRESULT Display::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         // https://wayland.freedesktop.org/docs/html/apa.html#protocol-spec-wl_pointer
         wpe_input_pointer_event_type messageType = message == WM_MOUSEMOVE ? wpe_input_pointer_event_type_motion : wpe_input_pointer_event_type_button;
 
-        // From linux/input-event-codes.h
-#define BTN_LEFT   0x110
-#define BTN_RIGHT  0x111
-#define BTN_MIDDLE 0x112
-
         uint32_t button = 0;
         const uint32_t state_pressed = 1;
         const uint32_t state_released = 0;
 
         if (wParam & MK_LBUTTON)
-            button = BTN_LEFT;
+            button = 1;
         else if (wParam & MK_MBUTTON)
-            button = BTN_MIDDLE;
+            button = 3;
         else if (wParam & MK_RBUTTON)
-            button = BTN_RIGHT;
+            button = 2;
 
         uint32_t state = button ? state_pressed : state_released;
         POINT p = positionForEvent(hWnd, lParam);
@@ -371,9 +369,7 @@ LRESULT Display::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             struct wpe_input_pointer_event event = { messageType, (uint32_t)GetMessageTime(), p.x, p.y, button, state };
             EventDispatcher::singleton().sendEvent(event);
         }
-
-        // wpe_view_backend_dispatch_pointer_event is invoked if pointer.target.first is true; this can only be true for
-        // bcm-nexus, bcm-nexus-wayland as they're the only backends that call registerInputClient.
+        handled = true;
     } break;
     case WM_MOUSEWHEEL:
     case WM_MOUSEHWHEEL:
@@ -409,6 +405,7 @@ LRESULT Display::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         struct wpe_input_axis_event event = { wpe_input_axis_event_type_motion, (uint32_t)GetMessageTime(), p.x, p.y, axis, (int32_t)delta };
         EventDispatcher::singleton().sendEvent(event);
+        handled = true;
     } break;
     case WM_KEYDOWN:
     {
@@ -420,6 +417,7 @@ LRESULT Display::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         bool pressed = true;
         struct wpe_input_keyboard_event event = { (uint32_t)GetMessageTime(), keyCode, unicode, pressed, getModifiers() };
         EventDispatcher::singleton().sendEvent(event);
+        handled = true;
     } break;
     case WM_KEYUP:
     {
@@ -428,6 +426,7 @@ LRESULT Display::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         bool pressed = false;
         struct wpe_input_keyboard_event event = { (uint32_t)GetMessageTime(), keyCode, unicode, pressed, getModifiers() };
         EventDispatcher::singleton().sendEvent(event);
+        handled = true;
     } break;
     case WM_CHAR:
     {
@@ -436,13 +435,15 @@ LRESULT Display::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         bool pressed = true;
         struct wpe_input_keyboard_event event = { (uint32_t)GetMessageTime(), keyCode, unicode, pressed, getModifiers() };
         EventDispatcher::singleton().sendEvent(event);
+        handled = true;
     } break;
     case WM_CLOSE:
     {
         PostQuitMessage(0);
+        handled = true;
     } break;
     }
-    return 0;
+    return handled ? 1 : 0;
 }
 
 } // namespace Windows
