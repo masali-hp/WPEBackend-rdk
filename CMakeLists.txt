@@ -26,12 +26,16 @@ option(USE_BACKEND_WINDOWS_EGL "Whether to use Windows EGL WPE backend" OFF)
 option(USE_PLATFORM_BROADCOM "Whether the playback is based on Broadcom plugins" OFF)
 option(USE_BACKEND_WESTEROS_MESA "Whether to enable support for the gbm based offscreen target for westeros Mesa only" OFF)
 
-option(USE_INPUT_LIBINPUT "Whether to enable support for the libinput input backend" ON)
-option(USE_INPUT_UDEV "Whether to enable support for the libinput input udev lib" ON)
-option(USE_INPUT_WAYLAND "Whether to enable support for the wayland input backend" OFF)
+if (UNIX)
+    option(USE_INPUT_LIBINPUT "Whether to enable support for the libinput input backend" ON)
+    option(USE_INPUT_UDEV "Whether to enable support for the libinput input udev lib" ON)
+    option(USE_INPUT_WAYLAND "Whether to enable support for the wayland input backend" OFF)
+endif ()
 
 find_package(WPE REQUIRED)
-find_package(Libxkbcommon REQUIRED)
+if (UNIX)
+    find_package(Libxkbcommon REQUIRED)
+endif ()
 find_package(GLIB 2.38.0 REQUIRED COMPONENTS gio gio-unix)
 
 if (USE_VIRTUAL_KEYBOARD)
@@ -88,7 +92,7 @@ else ()
     )
 endif ()
 
-if (NOT WIN32 AND USE_INPUT_LIBINPUT)
+if (USE_INPUT_LIBINPUT)
     find_package(Libinput REQUIRED)
     list(APPEND WPE_PLATFORM_INCLUDE_DIRECTORIES
             ${LIBINPUT_INCLUDE_DIRS}

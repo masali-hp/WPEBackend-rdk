@@ -75,6 +75,15 @@ void Host::sendMessage(char* data, size_t size)
 {
     if (!m_pipe || !m_pipe->IsValid())
         return;
+
+    /*printf("[host] %d: sending %d bytes:\n  Message Type: %llu 0: %d, 1: %d, 2: %d, 3: %d\n", ::GetCurrentProcessId(), size,
+        *(reinterpret_cast<uint64_t*>(data)),
+        *reinterpret_cast<int*>(data + 8),
+        *reinterpret_cast<int*>(data + 12),
+        *reinterpret_cast<int*>(data + 16),
+        *reinterpret_cast<int*>(data + 20),
+        *reinterpret_cast<int*>(data + 24));*/
+
     DWORD error;
     m_pipe->Send(size, data, error);
 }
@@ -82,6 +91,14 @@ void Host::sendMessage(char* data, size_t size)
 void Host::socketCallback(size_t len, char * buffer, void * data)
 {
     auto& host = *static_cast<Host*>(data);
+
+    /*printf("[host] %d: received %d bytes:\n  Message Type: %llu 0: %d, 1: %d, 2: %d, 3: %d\n", ::GetCurrentProcessId(), len,
+        *(reinterpret_cast<uint64_t*>(buffer)),
+        *reinterpret_cast<int*>(buffer + 8),
+        *reinterpret_cast<int*>(buffer + 12),
+        *reinterpret_cast<int*>(buffer + 16),
+        *reinterpret_cast<int*>(buffer + 20),
+        *reinterpret_cast<int*>(buffer + 24));*/
 
     if (len == Message::size)
         host.m_handler->handleMessage(buffer, Message::size);
@@ -106,41 +123,33 @@ void Client::deinitialize()
     m_handler = nullptr;
 }
 
-/*
-void Client::readSynchronously()
-{
-    if (g_socket_condition_wait(m_socket, G_IO_IN, nullptr, nullptr))
-        socketCallback(m_socket, G_IO_IN, this);
-}*/
-
 void Client::socketCallback(size_t len, char * buffer, void * data)
 {
     auto& host = *static_cast<Client*>(data);
+
+    /*printf("[client] %d: received %d bytes:\n  Message Type: %llu 0: %d, 1: %d, 2: %d, 3: %d\n", ::GetCurrentProcessId(), len,
+        *(reinterpret_cast<uint64_t*>(buffer)),
+        *reinterpret_cast<int*>(buffer + 8),
+        *reinterpret_cast<int*>(buffer + 12),
+        *reinterpret_cast<int*>(buffer + 16),
+        *reinterpret_cast<int*>(buffer + 20),
+        *reinterpret_cast<int*>(buffer + 24));*/
 
     if (len == Message::size)
         host.m_handler->handleMessage(buffer, Message::size);
 }
 
-/*
-void Client::sendFd(int fd)
-{
-    GSocketControlMessage* fdMessage = g_unix_fd_message_new();
-    if (!g_unix_fd_message_append_fd(G_UNIX_FD_MESSAGE(fdMessage), fd, nullptr)) {
-        g_object_unref(fdMessage);
-        return;
-    }
-
-    if (g_socket_send_message(m_socket, nullptr, nullptr, 0, &fdMessage, 1, 0, nullptr, nullptr) == -1) {
-        g_object_unref(fdMessage);
-        return;
-    }
-
-    g_object_unref(fdMessage);
-}*/
-
 void Client::sendMessage(char* data, size_t size)
 {
     if (m_pipe) {
+        /*printf("[client] %d: sending %d bytes:\n  Message Type: %llu 0: %d, 1: %d, 2: %d, 3: %d\n", ::GetCurrentProcessId(), size,
+            *(reinterpret_cast<uint64_t*>(data)),
+            *reinterpret_cast<int*>(data + 8),
+            *reinterpret_cast<int*>(data + 12),
+            *reinterpret_cast<int*>(data + 16),
+            *reinterpret_cast<int*>(data + 20),
+            *reinterpret_cast<int*>(data + 24));*/
+
         DWORD error;
         m_pipe->Send(size, data, error);
     }

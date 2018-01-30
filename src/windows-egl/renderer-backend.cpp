@@ -60,6 +60,7 @@ namespace WindowsEGL {
         virtual ~EGLTarget();
 
         void initialize(Backend& backend, uint32_t width, uint32_t height);
+        void resize(uint32_t width, uint32_t height);
         HWND hwnd() { return m_backend->display.nativeWindow(); }
 
         IPC::Client ipcClient;
@@ -83,15 +84,25 @@ namespace WindowsEGL {
     void EGLTarget::initialize(Backend& backend, uint32_t width, uint32_t height)
     {
         m_backend = &backend;
+        resize(width, height);
+        ShowWindow(hwnd(), SW_SHOW);
+    }
+
+    void EGLTarget::resize(uint32_t width, uint32_t height)
+    {
+        RECT clientRect;
+        GetClientRect(hwnd(), &clientRect);
+        if (clientRect.right - clientRect.left == width &&
+            clientRect.bottom - clientRect.top == height)
+            return;
+
         RECT windowRect;
-        windowRect.left = 0;
-        windowRect.top = 0;
-        windowRect.right = width;
-        windowRect.bottom = height;
+        GetWindowRect(hwnd(), &windowRect);
+        windowRect.right = windowRect.left + width;
+        windowRect.bottom = windowRect.top + height;
         BOOL bMenu = FALSE;
         AdjustWindowRect(&windowRect, m_backend->display.windowStyles(), bMenu);
-        SetWindowPos(hwnd(), NULL, 0, 0, windowRect.right - windowRect.left, windowRect.bottom - windowRect.top, 0);
-        ShowWindow(hwnd(), SW_SHOW);
+        SetWindowPos(hwnd(), NULL, windowRect.left, windowRect.top, windowRect.right - windowRect.left, windowRect.bottom - windowRect.top, 0);
     }
 
     EGLTarget::~EGLTarget()
@@ -109,6 +120,12 @@ namespace WindowsEGL {
         case IPC::WindowsEGL::FrameComplete::code:
         {
             wpe_renderer_backend_egl_target_dispatch_frame_complete(target);
+            break;
+        }
+        case IPC::WindowsEGL::SetSizeAndStyle::code:
+        {
+            auto& sizeMessage = IPC::WindowsEGL::SetSizeAndStyle::cast(message);
+            wpe_renderer_backend_egl_target_resize(target, sizeMessage.width, sizeMessage.height);
             break;
         }
         default:
@@ -168,6 +185,8 @@ extern "C" {
         // resize
         [](void* data, uint32_t width, uint32_t height)
     {
+        auto& target = *static_cast<WindowsEGL::EGLTarget*>(data);
+        target.resize(width, height);
     },
         // frame_will_render
         [](void* data)

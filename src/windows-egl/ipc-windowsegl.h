@@ -66,6 +66,29 @@ struct FrameComplete {
 };
 static_assert(sizeof(FrameComplete) == Message::dataSize, "FrameComplete is of correct size");
 
+struct SetSizeAndStyle {
+    int8_t padding[12];
+
+    static const uint64_t code = 3;
+    int width;
+    int height;
+    int style;
+
+    static void construct(Message& message, int width, int height, int style)
+    {
+        message.messageCode = code;
+        struct SetSizeAndStyle * payload = reinterpret_cast<SetSizeAndStyle*>(message.messageData);
+        payload->width = width;
+        payload->height = height;
+        payload->style = style;
+    }
+    static SetSizeAndStyle& cast(Message& message)
+    {
+        return *reinterpret_cast<SetSizeAndStyle*>(std::addressof(message.messageData));
+    }
+};
+static_assert(sizeof(SetSizeAndStyle) == Message::dataSize, "SetSizeAndStyle is of correct size");
+
 } // namespace WindowsEGL
 
 } // namespace IPC

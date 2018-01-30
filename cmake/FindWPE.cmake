@@ -33,11 +33,13 @@ pkg_check_modules(PC_WPE QUIET wpe-0.2)
 
 find_path(WPE_INCLUDE_DIRS
     NAMES wpe/wpe.h
+    PATH_SUFFIXES wpe-0.2
     HINTS ${PC_WPE_INCLUDEDIR} ${PC_WPE_INCLUDE_DIRS}
 )
 
 find_library(WPE_LIBRARIES
     NAMES wpe-0.2
+    PATH_SUFFIXES wpe-0.2
     HINTS ${PC_WPE_LIBDIR} ${PC_WPE_LIBRARY_DIRS}
 )
 
