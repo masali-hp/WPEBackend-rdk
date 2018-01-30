@@ -46,14 +46,18 @@ public:
     void sendEvent( wpe_input_touch_event& event );
     void sendEvent( wpe_input_keyboard_event& event );
     void sendEvent( wpe_input_touch_event_raw& event );
+    void sendEvent( const SIZE & newSize );
+    void sendQuitMessage( void );
     void setIPC( IPC::Client& ipcClient );
     enum MsgType
     {
-	AXIS = 0x30, // mouse wheel
-	POINTER,
-	TOUCH,
-	TOUCHSIMPLE,
-	KEYBOARD
+        AXIS = 0x30, // mouse wheel
+        POINTER,
+        TOUCH,
+        TOUCHSIMPLE,
+        KEYBOARD,
+        RESIZE,
+        QUIT
     };
 private:
     EventDispatcher() {};

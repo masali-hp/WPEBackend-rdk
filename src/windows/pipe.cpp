@@ -272,7 +272,7 @@ namespace Windows {
                 return false;
             }
 
-            if (op.Transferred == op.Total || !waitForAllData)
+            if (op.Transferred == op.Total || (op.Transferred && !waitForAllData))
                 break;
         }
         return error == ERROR_SUCCESS;

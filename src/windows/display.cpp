@@ -265,6 +265,27 @@ void EventDispatcher::sendEvent( wpe_input_touch_event_raw& event )
     }
 }
 
+void EventDispatcher::sendEvent( const SIZE & newSize )
+{
+    if (m_ipc != nullptr)
+    {
+        IPC::Message message;
+        message.messageCode = MsgType::RESIZE;
+        memcpy(message.messageData, &newSize, sizeof(newSize));
+        m_ipc->sendMessage(IPC::Message::data(message), IPC::Message::size);
+    }
+}
+
+void EventDispatcher::sendQuitMessage(void)
+{
+    if (m_ipc != nullptr)
+    {
+        IPC::Message message;
+        message.messageCode = MsgType::QUIT;
+        m_ipc->sendMessage(IPC::Message::data(message), IPC::Message::size);
+    }
+}
+
 void EventDispatcher::setIPC( IPC::Client& ipcClient )
 {
     m_ipc = &ipcClient;
@@ -314,7 +335,7 @@ LRESULT CALLBACK Display::WndProcStatic(HWND hWnd, UINT message, WPARAM wParam, 
     if (display) {
         result = display->WndProc(hWnd, message, wParam, lParam);
     }
-    if (result == 0) {
+    else {
         result = CallWindowProc(DefWindowProc, hWnd, message, wParam, lParam);
     }
     return result;
@@ -323,7 +344,8 @@ LRESULT CALLBACK Display::WndProcStatic(HWND hWnd, UINT message, WPARAM wParam, 
 LRESULT Display::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     bool emulateTouch = false;
-    bool handled = false;
+    bool handled = true;
+    LRESULT lResult = 0;
 
     switch (message) {
         // POINTER
@@ -335,25 +357,10 @@ LRESULT Display::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_MBUTTONDOWN:
     case WM_MBUTTONUP:
     {
-        // https://wayland.freedesktop.org/docs/html/apa.html#protocol-spec-wl_pointer
-        wpe_input_pointer_event_type messageType = message == WM_MOUSEMOVE ? wpe_input_pointer_event_type_motion : wpe_input_pointer_event_type_button;
-
-        uint32_t button = 0;
-        const uint32_t state_pressed = 1;
-        const uint32_t state_released = 0;
-
-        if (wParam & MK_LBUTTON)
-            button = 1;
-        else if (wParam & MK_MBUTTON)
-            button = 3;
-        else if (wParam & MK_RBUTTON)
-            button = 2;
-
-        uint32_t state = button ? state_pressed : state_released;
         POINT p = positionForEvent(hWnd, lParam);
 
         if (emulateTouch) {
-            int32_t id = 0; //?
+            int32_t id = 0;
             struct wpe_input_touch_event_raw event_touch_simple;
             if (message == WM_LBUTTONDOWN)
                 event_touch_simple = { wpe_input_touch_event_type_down, (uint32_t)GetMessageTime(), id, p.x, p.y };
@@ -366,10 +373,24 @@ LRESULT Display::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             EventDispatcher::singleton().sendEvent(event_touch_simple);
         }
         else {
+            // https://wayland.freedesktop.org/docs/html/apa.html#protocol-spec-wl_pointer
+            wpe_input_pointer_event_type messageType = message == WM_MOUSEMOVE ? wpe_input_pointer_event_type_motion : wpe_input_pointer_event_type_button;
+
+            uint32_t button = 0;
+            const uint32_t state_pressed = 1;
+            const uint32_t state_released = 0;
+
+            if (wParam & MK_LBUTTON)
+                button = 1;
+            else if (wParam & MK_MBUTTON)
+                button = 3;
+            else if (wParam & MK_RBUTTON)
+                button = 2;
+
+            uint32_t state = button ? state_pressed : state_released;
             struct wpe_input_pointer_event event = { messageType, (uint32_t)GetMessageTime(), p.x, p.y, button, state };
             EventDispatcher::singleton().sendEvent(event);
         }
-        handled = true;
     } break;
     case WM_MOUSEWHEEL:
     case WM_MOUSEHWHEEL:
@@ -405,7 +426,6 @@ LRESULT Display::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         struct wpe_input_axis_event event = { wpe_input_axis_event_type_motion, (uint32_t)GetMessageTime(), p.x, p.y, axis, (int32_t)delta };
         EventDispatcher::singleton().sendEvent(event);
-        handled = true;
     } break;
     case WM_KEYDOWN:
     {
@@ -417,7 +437,6 @@ LRESULT Display::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         bool pressed = true;
         struct wpe_input_keyboard_event event = { (uint32_t)GetMessageTime(), keyCode, unicode, pressed, getModifiers() };
         EventDispatcher::singleton().sendEvent(event);
-        handled = true;
     } break;
     case WM_KEYUP:
     {
@@ -426,7 +445,6 @@ LRESULT Display::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         bool pressed = false;
         struct wpe_input_keyboard_event event = { (uint32_t)GetMessageTime(), keyCode, unicode, pressed, getModifiers() };
         EventDispatcher::singleton().sendEvent(event);
-        handled = true;
     } break;
     case WM_CHAR:
     {
@@ -435,15 +453,34 @@ LRESULT Display::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         bool pressed = true;
         struct wpe_input_keyboard_event event = { (uint32_t)GetMessageTime(), keyCode, unicode, pressed, getModifiers() };
         EventDispatcher::singleton().sendEvent(event);
-        handled = true;
+    } break;
+    case WM_SIZE:
+    {
+        SIZE newSize{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+        EventDispatcher::singleton().sendEvent(newSize);
     } break;
     case WM_CLOSE:
     {
-        PostQuitMessage(0);
-        handled = true;
+        // https://msdn.microsoft.com/en-us/library/windows/desktop/ff381396(v=vs.85).aspx
+        EventDispatcher::singleton().sendQuitMessage();
+        // once we round trip, let's then call DestroyWindow, which will call WM_DESTROY, then we'll PostQuitMessage and exit.
     } break;
+    case WM_DESTROY:
+    {
+        PostQuitMessage(0);
+    } break;
+    default:
+    {
+        handled = false;
     }
-    return handled ? 1 : 0;
+    }
+
+    if (!handled) {
+        lResult = DefWindowProc(hWnd, message, wParam, lParam);
+    }
+
+    // Let the client know whether we consider this message handled.
+    return (message == WM_KEYDOWN || message == WM_SYSKEYDOWN || message == WM_KEYUP || message == WM_SYSKEYUP) ? !handled : lResult;
 }
 
 } // namespace Windows

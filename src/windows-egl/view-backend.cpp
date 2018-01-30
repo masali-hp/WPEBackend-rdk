@@ -104,6 +104,17 @@ void ViewBackend::handleMessage(char* data, size_t size)
         wpe_view_backend_dispatch_keyboard_event(backend, event);
         break;
     }
+    case Windows::EventDispatcher::MsgType::RESIZE:
+    {
+        SIZE * event = reinterpret_cast<SIZE*>(std::addressof(message.messageData));
+        wpe_view_backend_dispatch_set_size(backend, event->cx, event->cy);
+        break;
+    }
+    case Windows::EventDispatcher::MsgType::QUIT:
+    {
+        //TODO: figure out how to gracefully exit.
+        break;
+    }
     case IPC::WindowsEGL::BufferCommit::code:
     {
         ackBufferCommit();

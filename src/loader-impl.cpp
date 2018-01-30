@@ -58,6 +58,7 @@
 
 #ifdef BACKEND_WINDOWS_EGL
 #include "windows-egl/interfaces.h"
+#include "input/WindowsInput/input-windowsinput.h"
 #endif
 
 #ifdef BACKEND_WPEFRAMEWORK
@@ -184,6 +185,9 @@ struct wpe_loader_interface _wpe_loader_interface = {
 
         if (!std::strcmp(object_name, "_wpe_view_backend_interface"))
             return &windows_egl_view_backend_interface;
+
+        if (!std::strcmp(object_name, "_wpe_input_key_mapper_interface"))
+            return &windows_input_key_mapper_interface;
 #endif
 
 #ifdef BACKEND_WPEFRAMEWORK

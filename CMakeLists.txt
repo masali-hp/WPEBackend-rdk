@@ -110,7 +110,12 @@ else ()
     )
 endif ()
 
-if (NOT WIN32 AND USE_INPUT_LIBINPUT)
+if (WIN32)
+    list(APPEND WPE_PLATFORM_SOURCES
+            src/input/WindowsInput/input-windowsinput.cpp
+            src/input/WindowsInput/input-windowsinput.h
+            )
+elseif (USE_INPUT_LIBINPUT)
     find_package(Libinput REQUIRED)
     list(APPEND WPE_PLATFORM_INCLUDE_DIRECTORIES
             ${LIBINPUT_INCLUDE_DIRS}
