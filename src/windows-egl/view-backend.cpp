@@ -50,6 +50,7 @@ struct ViewBackend : public IPC::Host::Handler {
 
     void ackBufferCommit();
     void initialize();
+    void setSizeAndStyle(int width, int height, int style);
 
     struct wpe_view_backend* backend;
     IPC::Host ipcHost;
@@ -112,7 +113,7 @@ void ViewBackend::handleMessage(char* data, size_t size)
     }
     case Windows::EventDispatcher::MsgType::QUIT:
     {
-        //TODO: figure out how to gracefully exit.
+        wpe_view_backend_dispatch_quit_request(backend);
         break;
     }
     case IPC::WindowsEGL::BufferCommit::code:
@@ -136,7 +137,16 @@ void ViewBackend::initialize()
     if (tmp = std::getenv("WPE_INIT_VIEW_HEIGHT"))
         h = atoi(tmp);
 
-    wpe_view_backend_dispatch_set_size( backend, w, h );
+    setSizeAndStyle(w, h, WPE_BACKEND_STYLE_NO_CHANGE);
+}
+
+void ViewBackend::setSizeAndStyle(int width, int height, int style)
+{
+    IPC::Message message;
+    IPC::WindowsEGL::SetSizeAndStyle::construct(message, width, height, style);
+    ipcHost.sendMessage(IPC::Message::data(message), IPC::Message::size);
+
+    wpe_view_backend_dispatch_set_size(backend, width, height);
 }
 
 void ViewBackend::ackBufferCommit()
@@ -175,6 +185,12 @@ struct wpe_view_backend_interface windows_egl_view_backend_interface = {
     {
         auto& backend = *static_cast<WindowsEGL::ViewBackend*>(data);
         return backend.ipcHost.releaseClientFD();
+    },
+    // set_size_and_style
+    [](void* data, int width, int height, int style)
+    {
+        auto& backend = *static_cast<WindowsEGL::ViewBackend*>(data);
+        backend.setSizeAndStyle(width, height, style);
     },
 };
 

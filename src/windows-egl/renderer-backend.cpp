@@ -122,6 +122,12 @@ namespace WindowsEGL {
             wpe_renderer_backend_egl_target_dispatch_frame_complete(target);
             break;
         }
+        case IPC::WindowsEGL::SetSizeAndStyle::code:
+        {
+            auto& sizeMessage = IPC::WindowsEGL::SetSizeAndStyle::cast(message);
+            wpe_renderer_backend_egl_target_resize(target, sizeMessage.width, sizeMessage.height);
+            break;
+        }
         default:
             fprintf(stderr, "EGLTarget: unhandled message\n");
         };
