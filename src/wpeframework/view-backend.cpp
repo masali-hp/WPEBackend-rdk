@@ -146,6 +146,10 @@ struct wpe_view_backend_interface wpeframework_view_backend_interface = {
         WPEFramework::ViewBackend& backend (*static_cast<WPEFramework::ViewBackend*>(data));
         return backend.ipcHost.releaseClientFD();
     },
+    // set_size_and_style
+    [](void* data, int width, int height, int style)
+    {
+    },
 };
 
 }

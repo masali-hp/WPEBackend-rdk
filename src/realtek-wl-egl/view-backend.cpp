@@ -157,6 +157,10 @@ struct wpe_view_backend_interface wayland_egl_view_backend_interface = {
         auto& backend = *static_cast<WaylandEGL::ViewBackend*>(data);
         return backend.ipcHost.releaseClientFD();
     },
+    // set_size_and_style
+    [](void* data, int width, int height, int style)
+    {
+    },
 };
 
 }

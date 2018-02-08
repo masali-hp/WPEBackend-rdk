@@ -143,6 +143,10 @@ struct wpe_view_backend_interface westeros_view_backend_interface = {
     {
         return -1;
     },
+    // set_size_and_style
+    [](void* data, int width, int height, int style)
+    {
+    },
 };
 
 }

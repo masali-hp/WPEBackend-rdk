@@ -294,6 +294,10 @@ struct wpe_view_backend_interface bcm_nexus_wayland_view_backend_interface = {
         auto& backend = *static_cast<BCMNexusWL::ViewBackend*>(data);
         return backend.ipcHost().releaseClientFD();
     },
+    // set_size_and_style
+    [](void* data, int width, int height, int style)
+    {
+    },
 };
 
 }

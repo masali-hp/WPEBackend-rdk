@@ -426,6 +426,10 @@ struct wpe_view_backend_interface bcm_rpi_view_backend_interface = {
         auto& backend = *static_cast<BCMRPi::ViewBackend*>(data);
         return backend.releaseClientFD();
     },
+    // set_size_and_style
+    [](void* data, int width, int height, int style)
+    {
+    },
 };
 
 }
