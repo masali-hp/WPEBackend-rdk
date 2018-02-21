@@ -32,8 +32,17 @@
 #include "ipc.h"
 #include "ipc-waylandegl.h"
 
+#ifdef WIN32
+#else
+#include <xf86drm.h>
+#include <xf86drmMode.h>
+#include <stdio.h>
+#include <fcntl.h>
+#endif
+
 #define WIDTH 1280
 #define HEIGHT 720
+#define DEFAULT_CARD "/dev/dri/card0"
 
 namespace WaylandEGL {
 
@@ -118,11 +127,70 @@ void ViewBackend::initialize()
     uint32_t w = WIDTH, h = HEIGHT;
     char *tmp;
 
-    if (tmp = std::getenv("WPE_INIT_VIEW_WIDTH"))
+#ifdef WIN32
+	if (tmp = std::getenv("WPE_INIT_VIEW_WIDTH"))
         w = atoi(tmp);
 
     if (tmp = std::getenv("WPE_INIT_VIEW_HEIGHT"))
         h = atoi(tmp);
+#else
+	drmModeRes *res= 0;
+    drmModeConnector *conn= 0;
+    const char *card;
+    int drmFd;
+    int i = 0;
+
+    card= DEFAULT_CARD;
+
+    drmFd= open(card, O_RDWR);
+    if (drmFd > 0)
+    {
+        res= drmModeGetResources( drmFd );	
+        if (res)
+        {
+            for( i= 0; i < res->count_connectors; ++i )
+            {	
+                conn= drmModeGetConnector( drmFd, res->connectors[i] );
+                if (conn)
+                {
+                    if ((conn->connection == DRM_MODE_CONNECTED) && 
+                        (conn->count_modes > 0) )
+                    {
+                        break;
+                    }
+
+                    drmModeFreeConnector(conn);
+                    conn= 0;
+                }
+            }	  
+        }
+        else
+        {
+            printf("westeros-gl: setupDrm: unable to access drm resources for card (%s)\n", card);
+        }
+
+        printf("mode %dx%dx%d (%s) type 0x%x flags 0x%x\n", conn->modes[0].hdisplay, conn->modes[0].vdisplay,
+        conn->modes[0].vrefresh, conn->modes[0].name, conn->modes[0].type, conn->modes[0].flags );
+
+        if ((conn->modes[0].hdisplay) && (conn->modes[0].vdisplay))
+        {	   
+            w = conn->modes[i].hdisplay;
+            h = conn->modes[i].vdisplay;
+        }
+
+        if (conn)
+        {
+            drmModeFreeConnector(conn);
+        }
+
+        if (res)
+        {
+            drmModeFreeResources(res);
+        }
+
+        close(drmFd);
+    }
+#endif
 
     wpe_view_backend_dispatch_set_size( backend, w, h );
 }
