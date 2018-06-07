@@ -53,6 +53,8 @@ if (USE_BACKEND_WESTEROS_MESA)
     add_definitions(-DWPE_BACKEND_MESA=1)
 endif ()
 
+add_definitions(-DWPE_COMPILATION=1)
+
 set(WPE_PLATFORM_INCLUDE_DIRECTORIES
         "${CMAKE_SOURCE_DIR}/src/input"
         "${CMAKE_SOURCE_DIR}/src/util"
