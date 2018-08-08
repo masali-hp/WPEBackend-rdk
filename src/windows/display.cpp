@@ -435,6 +435,12 @@ LRESULT Display::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         uint32_t keyCode = (uint32_t)wParam;
         uint32_t unicode = 0;
         bool pressed = true;
+        MSG msg;
+        if (PeekMessage(&msg, hWnd, WM_CHAR, WM_CHAR, PM_REMOVE)) {
+            if (msg.message == WM_CHAR) {
+                unicode = (uint32_t)msg.wParam;
+            }
+        }
         struct wpe_input_keyboard_event event = { (uint32_t)GetMessageTime(), keyCode, unicode, pressed, getModifiers() };
         EventDispatcher::singleton().sendEvent(event);
     } break;
