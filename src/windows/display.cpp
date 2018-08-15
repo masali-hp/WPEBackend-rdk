@@ -121,12 +121,15 @@ DWORD WINAPI Display::MessageThreadStatic(void * ctx)
 
 Display::Display()
 {
-    auto expandVersion = [](int major, int minor) {
-        return major * 10 + minor;
-    };
-
     m_windowInitializedEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
     h_messageLoopThread = CreateThread(NULL, 0, MessageThreadStatic, this, 0, NULL);
+
+    DWORD waitMs = 10 * 1000;
+    DWORD waitResult = WaitForSingleObject(m_windowInitializedEvent, waitMs);
+    if (waitResult != WAIT_OBJECT_0) {
+        fprintf(stderr, "Window was not created within %d ms (%s, line %d)\n", waitMs, __FILE__, __LINE__);
+        return;
+    }
 
     m_display = eglGetDisplay(m_hdc);
 
@@ -397,6 +400,8 @@ LRESULT Display::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     {
         // See https://github.com/WebKit/webkit/blob/master/Source/WebCore/platform/win/WheelEventWin.cpp
         POINT p = positionForEvent(hWnd, lParam);
+        ScreenToClient(hWnd, &p);
+
         const uint32_t vertical_scroll = 0;
         const uint32_t horizontal_scroll = 1;
         uint32_t axis = message == WM_MOUSEHWHEEL || (wParam & MK_SHIFT) ? horizontal_scroll : vertical_scroll;
