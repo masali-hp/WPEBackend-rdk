@@ -30,6 +30,10 @@
 #include "display.h"
 #include "ipc.h"
 #include "ipc-waylandegl.h"
+#include <xf86drm.h>
+#include <xf86drmMode.h>
+#include <stdio.h>
+#include <fcntl.h>
 
 #define WIDTH 1280
 #define HEIGHT 720
@@ -112,6 +116,8 @@ void ViewBackend::handleMessage(char* data, size_t size)
     }
 }
 
+#define DEFAULT_CARD "/dev/dri/card0"
+
 void ViewBackend::initialize()
 {
     uint32_t w = WIDTH, h = HEIGHT;
@@ -122,6 +128,63 @@ void ViewBackend::initialize()
 
     if (tmp = std::getenv("WPE_INIT_VIEW_HEIGHT"))
         h = atoi(tmp);
+
+    drmModeRes *res= 0;
+    drmModeConnector *conn= 0;
+    const char *card;
+    int drmFd;
+    int i = 0;
+
+    card= DEFAULT_CARD;
+
+    drmFd= open(card, O_RDWR);
+    if (drmFd > 0)
+    {
+        res= drmModeGetResources( drmFd );
+        if (res)
+        {
+            for( i= 0; i < res->count_connectors; ++i )
+            {
+                conn= drmModeGetConnector( drmFd, res->connectors[i] );
+                if (conn)
+                {
+                    if ((conn->connection == DRM_MODE_CONNECTED) &&
+                        (conn->count_modes > 0) )
+                    {
+                        break;
+                    }
+
+                    drmModeFreeConnector(conn);
+                    conn= 0;
+                }
+            }
+        }
+        else
+        {
+            fprintf(stderr, "%s: setupDrm: unable to access drm resources for card (%s)\n", __FILE__, card);
+        }
+
+        printf("%s: mode %dx%dx%d (%s) type 0x%x flags 0x%x\n", __FILE__, conn->modes[0].hdisplay, conn->modes[0].vdisplay,
+        conn->modes[0].vrefresh, conn->modes[0].name, conn->modes[0].type, conn->modes[0].flags );
+
+        if ((conn->modes[0].hdisplay) && (conn->modes[0].vdisplay))
+        {
+            w = conn->modes[i].hdisplay;
+            h = conn->modes[i].vdisplay;
+        }
+
+        if (conn)
+        {
+            drmModeFreeConnector(conn);
+        }
+
+        if (res)
+        {
+            drmModeFreeResources(res);
+        }
+
+        close(drmFd);
+    }
 
     wpe_view_backend_dispatch_set_size( backend, w, h );
 }
