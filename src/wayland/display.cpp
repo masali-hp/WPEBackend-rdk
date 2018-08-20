@@ -453,7 +453,7 @@ static const struct wl_touch_listener g_touchListener = {
             // no surface properly registered, fallback to event_touch_simple
             struct wpe_input_touch_event_raw event_touch_simple = { wpe_input_touch_event_type_down, time, id, wl_fixed_to_int(x), wl_fixed_to_int(y) };
             if (printExtraDebug)
-                printf("touch(simple):down: id=%d, x=%d, y=%d\n", id, wl_fixed_to_int(x), wl_fixed_to_int(y));
+                printf("touch(simple):down: id=%d, x=%d, y=%d, time=%d\n", id, wl_fixed_to_int(x), wl_fixed_to_int(y), time);
             EventDispatcher::singleton().sendEvent( event_touch_simple );
         } else {
             target = { surface, it->second };
@@ -491,7 +491,7 @@ static const struct wl_touch_listener g_touchListener = {
         } else {
             // no surface registered
             if (printExtraDebug)
-                printf("touch(simple):up: points=%u, id=%d\n", touchPoints.size(), id);
+                printf("touch(simple):up: id=%d, x=%d, y=%d, time=%d\n", id, point.x, point.y, time);
             struct wpe_input_touch_event_raw event_touch_simple = { wpe_input_touch_event_type_up, time, id, point.x, point.y };
             EventDispatcher::singleton().sendEvent( event_touch_simple );
         }
@@ -518,7 +518,7 @@ static const struct wl_touch_listener g_touchListener = {
         } else {
             // no surface registered
             if (printExtraDebug)
-                printf("touch(simple):motion: points=%u, id=%d, x=%d, y=%d\n", touchPoints.size(), id, wl_fixed_to_int(x), wl_fixed_to_int(y));
+                printf("touch(simple):motion: id=%d, x=%d, y=%d, time=%d\n", id, wl_fixed_to_int(x), wl_fixed_to_int(y), time);
             struct wpe_input_touch_event_raw event_touch_simple = { wpe_input_touch_event_type_motion, time, id, wl_fixed_to_int(x), wl_fixed_to_int(y) };
             EventDispatcher::singleton().sendEvent( event_touch_simple );
         }
@@ -602,7 +602,7 @@ Display::Display()
     }
 
     char* wpeDebug = getenv("WPE_DEBUG");
-    if (strcmp(wpeDebug, "1") == 0) {
+    if (wpeDebug && strcmp(wpeDebug, "1") == 0) {
         printExtraDebug = true;
     }
 
