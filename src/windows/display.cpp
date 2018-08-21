@@ -346,7 +346,7 @@ LRESULT CALLBACK Display::WndProcStatic(HWND hWnd, UINT message, WPARAM wParam, 
 
 LRESULT Display::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    bool emulateTouch = false;
+    bool emulateTouch = true;
     bool handled = true;
     LRESULT lResult = 0;
 
@@ -365,12 +365,19 @@ LRESULT Display::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         if (emulateTouch) {
             int32_t id = 0;
             struct wpe_input_touch_event_raw event_touch_simple;
-            if (message == WM_LBUTTONDOWN)
+            if (message == WM_LBUTTONDOWN) {
+                ::SetCapture(m_hwnd);
                 event_touch_simple = { wpe_input_touch_event_type_down, (uint32_t)GetMessageTime(), id, p.x, p.y };
-            else if (message == WM_LBUTTONUP)
+            }
+            else if (message == WM_LBUTTONUP) {
+                ::ReleaseCapture();
                 event_touch_simple = { wpe_input_touch_event_type_up, (uint32_t)GetMessageTime(), id, p.x, p.y };
-            else if (message == WM_MOUSEMOVE)
+            }
+            else if (message == WM_MOUSEMOVE) {
+                if (::GetCapture() != m_hwnd)
+                    break;
                 event_touch_simple = { wpe_input_touch_event_type_motion, (uint32_t)GetMessageTime(), id, p.x, p.y };
+            }
             else
                 break;
             EventDispatcher::singleton().sendEvent(event_touch_simple);
