@@ -226,6 +226,14 @@ struct wpe_view_backend_interface wayland_egl_view_backend_interface = {
         auto& backend = *static_cast<WaylandEGL::ViewBackend*>(data);
         return backend.ipcHost.releaseClientFD();
     },
+    // set_size_and_style
+    [](void* data, int width, int height, int style)
+    {
+        // We added this for Windows to allow re-sizing the window and changing
+        // the style.  Not needed on hardware.
+        //auto& backend = *static_cast<WaylandEGL::ViewBackend*>(data);
+        //backend.setSizeAndStyle(width, height, style);
+    },
 };
 
 }
