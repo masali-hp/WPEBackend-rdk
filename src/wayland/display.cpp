@@ -45,6 +45,7 @@
 namespace Wayland {
 
 static bool printExtraDebug = false;
+static bool emulateTouch = true; // when we receive mouse events, send them through as touch events.
 
 class EventSource {
 public:
@@ -164,7 +165,7 @@ static const struct wl_pointer_listener g_pointerListener = {
     [](void* data, struct wl_pointer*, uint32_t serial, struct wl_surface* surface, wl_fixed_t, wl_fixed_t)
     {
         if (printExtraDebug)
-            printf("pointer:enter:\n");
+            fprintf(stderr, "pointer:enter:\n");
         auto& seatData = *static_cast<Display::SeatData*>(data);
         seatData.serial = serial;
         auto it = seatData.inputClients.find(surface);
@@ -175,7 +176,7 @@ static const struct wl_pointer_listener g_pointerListener = {
     [](void* data, struct wl_pointer*, uint32_t serial, struct wl_surface* surface)
     {
         if (printExtraDebug)
-            printf("pointer:leave:\n");
+            fprintf(stderr, "pointer:leave:\n");
         auto& seatData = *static_cast<Display::SeatData*>(data);
         seatData.serial = serial;
         auto it = seatData.inputClients.find(surface);
@@ -189,19 +190,29 @@ static const struct wl_pointer_listener g_pointerListener = {
         auto y = wl_fixed_to_int(fixedY);
 
         if (printExtraDebug)
-            printf("pointer:motion: x=%d, y=%d\n", x, y);
+            fprintf(stderr, "pointer:motion: x=%d, y=%d, time=%u\n", x, y, time);
 
         auto& seatData = *static_cast<Display::SeatData*>(data);
         auto& pointer = seatData.pointer;
 
         pointer.coords = { x, y };
 
-        struct wpe_input_pointer_event event = { wpe_input_pointer_event_type_motion, time, x, y, pointer.button, pointer.state, getModifiers(seatData) };
-        EventDispatcher::singleton().sendEvent( event );
+        if (emulateTouch) {
+            if (pointer.button) {
+                int32_t id = 0;
+                struct wpe_input_touch_event_raw event_touch_simple;
+                event_touch_simple = { wpe_input_touch_event_type_motion, time, id, x, y };
+                EventDispatcher::singleton().sendEvent(event_touch_simple);
+            }
+        }
+        else {
+            struct wpe_input_pointer_event event = { wpe_input_pointer_event_type_motion, time, x, y, pointer.button, pointer.state, getModifiers(seatData) };
+            EventDispatcher::singleton().sendEvent( event );
 
-        if (pointer.target.first) {
-            struct wpe_view_backend* backend = pointer.target.second;
-            wpe_view_backend_dispatch_pointer_event(backend, &event);
+            if (pointer.target.first) {
+                struct wpe_view_backend* backend = pointer.target.second;
+                wpe_view_backend_dispatch_pointer_event(backend, &event);
+            }
         }
     },
     // button
@@ -222,40 +233,48 @@ static const struct wl_pointer_listener g_pointerListener = {
         pointer.state = state;
 
         if (printExtraDebug)
-            printf("pointer:button: button=%u, state=%u, x=%d, y=%d\n", pointer.button, state, coords.first, coords.second);
+            fprintf(stderr, "pointer:button: button=%u, state=%u, x=%d, y=%d, time=%u\n", pointer.button, state, coords.first, coords.second, time);
 
-        uint32_t modifier = 0;
-        switch (button) {
-        case 1:
-            modifier = wpe_input_pointer_modifier_button1;
-            break;
-        case 2:
-            modifier = wpe_input_pointer_modifier_button2;
-            break;
-        case 3:
-	    modifier = wpe_input_pointer_modifier_button3;
-            break;
-        case 4:
-            modifier = wpe_input_pointer_modifier_button4;
-            break;
-        case 5:
-            modifier = wpe_input_pointer_modifier_button5;
-            break;
-        default:
-            break;
+        if (emulateTouch) {
+            int32_t id = 0;
+            struct wpe_input_touch_event_raw event_touch_simple;
+            event_touch_simple = { state ? wpe_input_touch_event_type_down : wpe_input_touch_event_type_up, time, id, coords.first, coords.second };
+            EventDispatcher::singleton().sendEvent(event_touch_simple);
         }
+        else {
+            uint32_t modifier = 0;
+            switch (button) {
+            case 1:
+                modifier = wpe_input_pointer_modifier_button1;
+                break;
+            case 2:
+                modifier = wpe_input_pointer_modifier_button2;
+                break;
+            case 3:
+                modifier = wpe_input_pointer_modifier_button3;
+                break;
+            case 4:
+                modifier = wpe_input_pointer_modifier_button4;
+                break;
+            case 5:
+                modifier = wpe_input_pointer_modifier_button5;
+                break;
+            default:
+                break;
+            }
 
-	if (state)
-            seatData.pointer.modifiers |= modifier;
-        else
-            seatData.pointer.modifiers &= ~modifier;
+            if (state)
+                seatData.pointer.modifiers |= modifier;
+            else
+                seatData.pointer.modifiers &= ~modifier;
 
-        struct wpe_input_pointer_event event = { wpe_input_pointer_event_type_button, time, coords.first, coords.second, button, state, getModifiers(seatData) };
-        EventDispatcher::singleton().sendEvent( event );
+            struct wpe_input_pointer_event event = { wpe_input_pointer_event_type_button, time, coords.first, coords.second, button, state, getModifiers(seatData) };
+            EventDispatcher::singleton().sendEvent( event );
 
-        if (pointer.target.first) {
-            struct wpe_view_backend* backend = pointer.target.second;
-            wpe_view_backend_dispatch_pointer_event(backend, &event);
+            if (pointer.target.first) {
+                struct wpe_view_backend* backend = pointer.target.second;
+                wpe_view_backend_dispatch_pointer_event(backend, &event);
+            }
         }
     },
     // axis
@@ -266,7 +285,7 @@ static const struct wl_pointer_listener g_pointerListener = {
         auto& coords = pointer.coords;
 
         if (printExtraDebug)
-            printf("pointer:axis: axis=%u, value=%d, x=%d, y=%d\n", axis, -wl_fixed_to_int(value), coords.first, coords.second);
+            fprintf(stderr, "pointer:axis: axis=%u, value=%d, x=%d, y=%d, time=%u\n", axis, -wl_fixed_to_int(value), coords.first, coords.second, time);
 
         struct wpe_input_axis_event event = { wpe_input_axis_event_type_motion, time, coords.first, coords.second, axis, -wl_fixed_to_int(value), getModifiers(seatData) };
 
@@ -283,7 +302,7 @@ static void
 handleKeyEvent(Display::SeatData& seatData, uint32_t key, uint32_t state, uint32_t time)
 {
     if (printExtraDebug)
-        printf("handleKeyEvent: key=%u, state=%u\n", key, state);
+        fprintf(stderr, "handleKeyEvent: key=%u, state=%u, time=%u\n", key, state, time);
 
     uint32_t keysym = wpe_input_xkb_context_get_key_code(wpe_input_xkb_context_get_default(), key, state == WL_KEYBOARD_KEY_STATE_PRESSED);
     if (!keysym)
@@ -423,11 +442,11 @@ static const char * touchEventToString(enum wpe_input_touch_event_type event_typ
 
 static void printTouchDetails(const wpe_input_touch_event & event)
 {
-    printf("touch:%s: points=%d, id=%d\n", touchEventToString(event.type), (int) event.touchpoints_length, (int) event.id);
+    fprintf(stderr, "touch:%s: points=%d, id=%d, time=%u\n", touchEventToString(event.type), (int) event.touchpoints_length, (int) event.id, event.time);
     for (int i = 0; i < event.touchpoints_length; i++) {
         const wpe_input_touch_event_raw & raw_event = event.touchpoints[i];
         if (raw_event.type != wpe_input_touch_event_type_null)
-            printf("  [%d]: type=%s, id=%d, x=%d, y=%d\n", i, touchEventToString(raw_event.type), raw_event.id, raw_event.x, raw_event.y);
+            fprintf(stderr, "  [%d]: type=%s, id=%d, x=%d, y=%d, time=%u\n", i, touchEventToString(raw_event.type), raw_event.id, raw_event.x, raw_event.y, raw_event.time);
     }
 }
 
@@ -453,7 +472,7 @@ static const struct wl_touch_listener g_touchListener = {
             // no surface properly registered, fallback to event_touch_simple
             struct wpe_input_touch_event_raw event_touch_simple = { wpe_input_touch_event_type_down, time, id, wl_fixed_to_int(x), wl_fixed_to_int(y) };
             if (printExtraDebug)
-                printf("touch(simple):down: id=%d, x=%d, y=%d, time=%d\n", id, wl_fixed_to_int(x), wl_fixed_to_int(y), time);
+                fprintf(stderr, "touch(simple):down: id=%d, x=%d, y=%d, time=%u\n", id, wl_fixed_to_int(x), wl_fixed_to_int(y), time);
             EventDispatcher::singleton().sendEvent( event_touch_simple );
         } else {
             target = { surface, it->second };
@@ -491,7 +510,7 @@ static const struct wl_touch_listener g_touchListener = {
         } else {
             // no surface registered
             if (printExtraDebug)
-                printf("touch(simple):up: id=%d, x=%d, y=%d, time=%d\n", id, point.x, point.y, time);
+                fprintf(stderr, "touch(simple):up: id=%d, x=%d, y=%d, time=%u\n", id, point.x, point.y, time);
             struct wpe_input_touch_event_raw event_touch_simple = { wpe_input_touch_event_type_up, time, id, point.x, point.y };
             EventDispatcher::singleton().sendEvent( event_touch_simple );
         }
@@ -518,7 +537,7 @@ static const struct wl_touch_listener g_touchListener = {
         } else {
             // no surface registered
             if (printExtraDebug)
-                printf("touch(simple):motion: id=%d, x=%d, y=%d, time=%d\n", id, wl_fixed_to_int(x), wl_fixed_to_int(y), time);
+                fprintf(stderr, "touch(simple):motion: id=%d, x=%d, y=%d, time=%u\n", id, wl_fixed_to_int(x), wl_fixed_to_int(y), time);
             struct wpe_input_touch_event_raw event_touch_simple = { wpe_input_touch_event_type_motion, time, id, wl_fixed_to_int(x), wl_fixed_to_int(y) };
             EventDispatcher::singleton().sendEvent( event_touch_simple );
         }
@@ -574,7 +593,7 @@ static const struct wl_seat_listener g_seatListener = {
         }
 
         if (printExtraDebug) {
-            printf("capabilities: pointer=%s, keyboard=%s, touch=%s (capabilities=0x%08x)\n",
+            fprintf(stderr, "capabilities: pointer=%s, keyboard=%s, touch=%s (capabilities=0x%08x)\n",
                 hasPointerCap ? "true" : "false",
                 hasKeyboardCap ? "true" : "false",
                 hasTouchCap ? "true" : "false",
