@@ -728,6 +728,7 @@ void EventDispatcher::sendEvent( wpe_input_axis_event& event )
     if ( m_ipc != nullptr )
     {
         IPC::Message message;
+        static_assert(sizeof(message.messageData) >= sizeof(event), "messageData must be large enough to hold wpe_input_axis_event");
         message.messageCode = MsgType::AXIS;
         memcpy( message.messageData, &event, sizeof(event) );
         m_ipc->sendMessage(IPC::Message::data(message), IPC::Message::size);
@@ -739,6 +740,7 @@ void EventDispatcher::sendEvent( wpe_input_pointer_event& event )
     if ( m_ipc != nullptr )
     {
         IPC::Message message;
+        static_assert(sizeof(message.messageData) >= sizeof(event), "messageData must be large enough to hold wpe_input_pointer_event");
         message.messageCode = MsgType::POINTER;
         memcpy( message.messageData, &event, sizeof(event) );
         m_ipc->sendMessage(IPC::Message::data(message), IPC::Message::size);
@@ -750,6 +752,7 @@ void EventDispatcher::sendEvent( wpe_input_touch_event& event )
     if ( m_ipc != nullptr )
     {
         IPC::Message message;
+        static_assert(sizeof(message.messageData) >= sizeof(event), "messageData must be large enough to hold wpe_input_touch_event");
         message.messageCode = MsgType::TOUCH;
         memcpy( message.messageData, &event, sizeof(event) );
         m_ipc->sendMessage(IPC::Message::data(message), IPC::Message::size);
@@ -761,6 +764,7 @@ void EventDispatcher::sendEvent( wpe_input_keyboard_event& event )
     if ( m_ipc != nullptr )
     {
         IPC::Message message;
+        static_assert(sizeof(message.messageData) >= sizeof(event), "messageData must be large enough to hold wpe_input_keyboard_event");
         message.messageCode = MsgType::KEYBOARD;
         memcpy( message.messageData, &event, sizeof(event) );
         m_ipc->sendMessage(IPC::Message::data(message), IPC::Message::size);
@@ -772,6 +776,7 @@ void EventDispatcher::sendEvent( wpe_input_touch_event_raw& event )
     if ( m_ipc != nullptr )
     {
         IPC::Message message;
+        static_assert(sizeof(message.messageData) >= sizeof(event), "messageData must be large enough to hold wpe_input_touch_event_raw");
         message.messageCode = MsgType::TOUCHSIMPLE;
         memcpy( message.messageData, &event, sizeof(event) );
         m_ipc->sendMessage(IPC::Message::data(message), IPC::Message::size);

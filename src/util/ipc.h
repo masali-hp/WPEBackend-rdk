@@ -39,10 +39,10 @@
 namespace IPC {
 
 struct Message {
-    static const size_t size = 32;
-    static const size_t dataSize = 24;
+    static const size_t size = 40;
+    static const size_t dataSize = 36;
 
-    uint64_t messageCode { 0 };
+    uint32_t messageCode { 0 };
     uint8_t messageData[dataSize] { 0, };
 
     static char* data(Message& message) { return reinterpret_cast<char*>(std::addressof(message)); }
